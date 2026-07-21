@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Refurb QC Visual Tester v3.0</title>
+<title>Refurb QC Visual Tester</title>
 <style>
   body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e1e1e; color: #fff; text-align: center; padding: 20px; }
   .container { max-width: 1000px; margin: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
@@ -11,13 +11,13 @@
   .btn { display: inline-block; background: #0078D7; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 4px; cursor: pointer; margin: 5px; text-decoration: none; }
   .btn:hover { background: #005A9E; }
   
-  /* Visual Keyboard CSS */
+  /* Visual Keyboard Layout */
   .keyboard { display: flex; flex-direction: column; gap: 5px; align-items: center; margin-top: 15px; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #444;}
   .row { display: flex; gap: 5px; }
   .key { background: #333; border: 1px solid #555; border-radius: 4px; padding: 10px; min-width: 30px; font-size: 14px; text-align: center; transition: background 0.1s; user-select: none; }
   .key.pressed { background: #4CAF50 !important; color: black; border-color: #2E7D32; }
   
-  /* Key Width Adjustments */
+  /* Custom Key Widths */
   #Backspace, #Tab, #CapsLock, #Enter, #ShiftLeft, #ShiftRight { min-width: 70px; }
   #Space { min-width: 300px; }
   
@@ -26,7 +26,7 @@
 </head>
 <body>
 
-<h1>Hardware QC Dashboard v3.0</h1>
+<h1>Hardware QC Dashboard</h1>
 
 <div class="container">
   
@@ -34,16 +34,16 @@
   <div class="card">
     <h3>1. Display & Audio</h3>
     <button class="btn" onclick="startDisplayTest()">Run Dead Pixel Test</button>
-    <p style="font-size: 12px; color: #aaa;">Click screen or press Space to cycle colors. ESC to exit.</p>
-    <hr style="border-color: #444;">
+    <p style="font-size: 12px; color: #aaa;">Click screen or press Space to cycle colors.</p>
+    <hr style="border-color: #444; margin: 15px 0;">
     <button class="btn" onclick="playTone(-1)">Test LEFT Speaker</button>
     <button class="btn" onclick="playTone(1)">Test RIGHT Speaker</button>
   </div>
 
-  <!-- WEBCAM & MIC (Native Windows Apps) -->
+  <!-- WEBCAM & MIC -->
   <div class="card">
     <h3>2. Webcam & Mic</h3>
-    <p style="font-size: 12px; color: #aaa;">Bypasses browser blocks by opening native Windows apps.</p>
+    <p style="font-size: 12px; color: #aaa;">These buttons open the native Windows apps to bypass browser security blocks.</p>
     <a href="microsoft.windows.camera:" class="btn">Open Windows Camera</a>
     <a href="ms-settings:sound" class="btn">Check Mic in Settings</a>
   </div>
@@ -51,7 +51,7 @@
   <!-- VISUAL KEYBOARD -->
   <div class="card-full">
     <h3>3. Visual Keyboard Matrix</h3>
-    <p style="font-size: 14px; color: #aaa;">Press every key. Default browser actions are blocked. Keys will stay green once triggered.</p>
+    <p style="font-size: 14px; color: #aaa;">Press keys on the laptop. They will light up green here to prove they work.</p>
     
     <div class="keyboard">
       <!-- Function Row -->
@@ -90,7 +90,7 @@
 
 <!-- Hidden Display Test Overlay -->
 <div id="displayOverlay" onclick="cycleColor()">
-  <span id="displayInst">Click or Press SPACE to cycle. Press ESC to exit.</span>
+  <span id="displayInst">Click or Press SPACE to cycle colors. Press ESC to exit.</span>
 </div>
 
 <script>
@@ -116,7 +116,7 @@ function cycleColor() {
         exitDisplayTest(); 
     } else { 
         overlay.style.backgroundColor = colors[colorIndex];
-        inst.style.display = 'none'; // Hide instructions after first click
+        inst.style.display = 'none';
     }
 }
 
