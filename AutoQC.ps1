@@ -41,18 +41,29 @@ if ($NetAdapters) {
     "Network: FAIL (No physical adapters found)" | Out-File $ReportPath -Append
 }
 
-# --- 4. STORAGE & HEALTH ---
+# --- 4. STORAGE & HEALTH (WITH PERCENTAGE) ---
 " `n--- STORAGE HEALTH ---" | Out-File $ReportPath -Append
-Get-PhysicalDisk | Select-Object FriendlyName, MediaType, HealthStatus, @{Name="Size(GB)";Expression={[math]::Round($_.Size/1GB, 2)}} | Format-Table -AutoSize | Out-File $ReportPath -Append
+$Disks = Get-PhysicalDisk
+foreach ($Disk in $Disks) {
+    $SizeGB = [math]::Round($Disk.Size / 1GB, 2)
+    $Name = $Disk.FriendlyName
+    $Type = $Disk.MediaType
+    
+    # Check basic status
+    $Status = "PASS"
+    $SMART = Get-WmiObject -namespace root\wmi -class MSStorageDriver_FailurePredictStatus -ErrorAction SilentlyContinue | Where-Object { $_.InstanceName -match $Disk.DeviceId }
+    if ($SMART -and $SMART.PredictFailure) { $Status = "FAIL PENDING" }
 
-$SMART = Get-WmiObject -namespace root\wmi -class MSStorageDriver_FailurePredictStatus -ErrorAction SilentlyContinue
-if ($SMART) {
-    foreach ($drive in $SMART) {
-        $status = if ($drive.PredictFailure) { "FAIL PENDING" } else { "PASS (Healthy)" }
-        "SMART Health: $status" | Out-File $ReportPath -Append
+    # Attempt to read exact Wear Level (Works best for NVMe SSDs)
+    $Counters = $Disk | Get-StorageReliabilityCounter -ErrorAction SilentlyContinue
+    if ($null -ne $Counters -and $null -ne $Counters.Wear) {
+        $HealthPct = 100 - $Counters.Wear
+        "Drive: $Name ($Type) | Size: $SizeGB GB | Status: $Status | Health: $HealthPct%" | Out-File $ReportPath -Append
+        "Power-On Hours: $($Counters.PowerOnHours)" | Out-File $ReportPath -Append
+    } else {
+        # Fallback for older SATA drives that do not report wear to Windows natively
+        "Drive: $Name ($Type) | Size: $SizeGB GB | Status: $Status | Health: Unknown % (Not reported natively)" | Out-File $ReportPath -Append
     }
-} else {
-    "SMART Health: Must run script as Administrator to view." | Out-File $ReportPath -Append
 }
 
 # --- 5. BATTERY HEALTH (Calculates Wear Level) ---
