@@ -1,76 +1,128 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Refurb QC Interactive Tester</title>
+<meta charset="UTF-8">
+<title>Refurb QC Interactive Tester v2.0</title>
 <style>
-  body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-  .btn { padding: 15px 30px; font-size: 18px; margin: 10px; cursor: pointer; }
-  #keyLog { margin: 20px auto; padding: 10px; width: 80%; height: 250px; border: 2px solid #333; overflow-y: auto; font-size: 18px; font-family: monospace; background: #f9f9f9; text-align: left;}
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e1e1e; color: #fff; text-align: center; padding: 20px; }
+  .container { max-width: 900px; margin: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .card { background: #2d2d2d; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+  .card-full { grid-column: span 2; background: #2d2d2d; padding: 20px; border-radius: 8px; }
+  .btn { background: #0078D7; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 4px; cursor: pointer; margin: 5px; }
+  .btn:hover { background: #005A9E; }
+  #keyLog { height: 180px; overflow-y: auto; background: #111; padding: 15px; font-family: monospace; font-size: 16px; text-align: left; border-radius: 4px; border: 1px solid #444; }
+  .key-hit { color: #4CAF50; font-weight: bold; }
+  video { width: 100%; max-height: 200px; background: #000; border-radius: 4px; margin-top: 10px; }
+  #micMeter { width: 100%; height: 20px; background: #111; border-radius: 10px; overflow: hidden; margin-top: 10px; border: 1px solid #444;}
+  #micFill { height: 100%; width: 0%; background: #4CAF50; transition: width 0.1s; }
 </style>
 </head>
 <body>
 
-<h2>1. Display Test (Dead Pixels)</h2>
-<button class="btn" onclick="startDisplayTest()">Run Fullscreen Color Cycle</button>
-<p><small>Click the screen to cycle through Red, Green, Blue, White, Black. Press ESC to exit.</small></p>
+<h1>Hardware QC Dashboard</h1>
 
-<h2>2. Speaker Test</h2>
-<button class="btn" onclick="playTestTone()">Play Audio Test Tone</button>
-<p><small>Plays a 1.5-second chime to ensure the audio driver and physical speakers work.</small></p>
+<div class="container">
+  
+  <!-- DISPLAY & AUDIO -->
+  <div class="card">
+    <h3>1. Display & Audio</h3>
+    <button class="btn" onclick="startDisplayTest()">Run Dead Pixel Test</button>
+    <p style="font-size: 12px; color: #aaa;">Click screen to cycle colors. ESC to exit.</p>
+    <hr style="border-color: #444;">
+    <button class="btn" onclick="playTone(-1)">Test LEFT Speaker</button>
+    <button class="btn" onclick="playTone(1)">Test RIGHT Speaker</button>
+  </div>
 
-<h2>3. Keyboard Test</h2>
-<p>Press any key. The log blocks normal browser actions (like scrolling) so you can test the spacebar and arrows.</p>
-<div id="keyLog">Waiting for keypress...<br></div>
+  <!-- WEBCAM & MIC -->
+  <div class="card">
+    <h3>2. Webcam & Mic</h3>
+    <button class="btn" onclick="startCamera()">Turn On Camera & Mic</button>
+    <video id="videoFeed" autoplay playsinline muted></video>
+    <div id="micMeter"><div id="micFill"></div></div>
+  </div>
+
+  <!-- KEYBOARD -->
+  <div class="card-full">
+    <h3>3. Keyboard Matrix Test</h3>
+    <p style="font-size: 14px; color: #aaa;">Press every key. Default browser actions (scrolling, tabbing) are blocked for testing.</p>
+    <div id="keyLog"><span style="color:#888;">Waiting for keystrokes...</span><br></div>
+    <button class="btn" onclick="document.getElementById('keyLog').innerHTML=''" style="background: #555; margin-top: 10px;">Clear Log</button>
+  </div>
+
+</div>
 
 <script>
-// 1. Display Test Logic
-const colors = ['red', 'green', 'blue', 'white', 'black'];
-let colorIndex = 0;
-let testDiv = null;
+// --- DISPLAY TEST ---
+const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFFFF', '#000000'];
+let colorIndex = 0; let testDiv = null;
 
 function startDisplayTest() {
     testDiv = document.createElement('div');
-    testDiv.style.position = 'fixed';
-    testDiv.style.top = '0'; testDiv.style.left = '0';
-    testDiv.style.width = '100vw'; testDiv.style.height = '100vh';
-    testDiv.style.zIndex = '9999';
+    testDiv.style.position = 'fixed'; testDiv.style.top = '0'; testDiv.style.left = '0';
+    testDiv.style.width = '100vw'; testDiv.style.height = '100vh'; testDiv.style.zIndex = '9999';
     testDiv.style.backgroundColor = colors[colorIndex];
     testDiv.onclick = function() {
         colorIndex++;
-        if (colorIndex >= colors.length) {
-            document.body.removeChild(testDiv);
-            colorIndex = 0;
-        } else {
-            testDiv.style.backgroundColor = colors[colorIndex];
-        }
+        if (colorIndex >= colors.length) { document.body.removeChild(testDiv); colorIndex = 0; } 
+        else { testDiv.style.backgroundColor = colors[colorIndex]; }
     };
     document.body.appendChild(testDiv);
-    testDiv.requestFullscreen().catch(() => alert("Your browser blocked fullscreen, but the colors will still show."));
+    testDiv.requestFullscreen().catch(()=>{});
 }
 
-// 2. Speaker Test Logic
-function playTestTone() {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioCtx.createOscillator();
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // A4 note
-    oscillator.connect(audioCtx.destination);
-    oscillator.start();
-    oscillator.stop(audioCtx.currentTime + 1.5); 
+// --- AUDIO TEST (Left/Right) ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playTone(panValue) {
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const panner = audioCtx.createStereoPanner();
+    panner.pan.value = panValue; // -1 is Left, 1 is Right
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+    osc.connect(panner);
+    panner.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 1);
 }
 
-// 3. Keyboard Test Logic
-document.addEventListener('keydown', function(event) {
-    const log = document.getElementById('keyLog');
-    if (log.innerHTML.includes("Waiting")) { log.innerHTML = ""; }
-    
-    const entry = "<span style='color: green;'>✔</span> <b>" + event.key + "</b> (Hardware Code: " + event.code + ") registered.<br>";
-    log.innerHTML = entry + log.innerHTML;
-    
-    // Prevent default actions for testing Spacebar, Arrows, Tab, etc.
-    if (event.key !== "Escape" && event.key !== "F5" && event.key !== "F12") {
-        event.preventDefault(); 
+// --- WEBCAM & MIC TEST ---
+async function startCamera() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        document.getElementById('videoFeed').srcObject = stream;
+        
+        // Setup Mic Meter
+        const source = audioCtx.createMediaStreamSource(stream);
+        const analyzer = audioCtx.createAnalyser();
+        analyzer.fftSize = 256;
+        source.connect(analyzer);
+        const dataArray = new Uint8Array(analyzer.frequencyBinCount);
+        
+        function updateMeter() {
+            analyzer.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for(let i = 0; i < dataArray.length; i++) { sum += dataArray[i]; }
+            let average = sum / dataArray.length;
+            document.getElementById('micFill').style.width = (average * 2) + '%';
+            requestAnimationFrame(updateMeter);
+        }
+        updateMeter();
+    } catch (err) {
+        alert("Camera/Mic not found or permission denied.");
     }
+}
+
+// --- KEYBOARD TEST ---
+document.addEventListener('keydown', function(e) {
+    const log = document.getElementById('keyLog');
+    if (log.innerHTML.includes("Waiting")) log.innerHTML = "";
+    
+    // Prevent default scrolling/tabbing so tech can test those keys
+    if (!['F5', 'F11', 'F12', 'Escape'].includes(e.key)) { e.preventDefault(); }
+    
+    let keyName = e.key === " " ? "Spacebar" : e.key;
+    const entry = `<span class="key-hit">✔</span> [ <b>${keyName.toUpperCase()}</b> ] - Hardware Code: ${e.code}<br>`;
+    log.insertAdjacentHTML('afterbegin', entry);
 });
 </script>
 </body>
