@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Refurb QC Interactive Tester</title>
+<style>
+  body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+  .btn { padding: 15px 30px; font-size: 18px; margin: 10px; cursor: pointer; }
+  #keyLog { margin: 20px auto; padding: 10px; width: 80%; height: 250px; border: 2px solid #333; overflow-y: auto; font-size: 18px; font-family: monospace; background: #f9f9f9; text-align: left;}
+</style>
+</head>
+<body>
+
+<h2>1. Display Test (Dead Pixels)</h2>
+<button class="btn" onclick="startDisplayTest()">Run Fullscreen Color Cycle</button>
+<p><small>Click the screen to cycle through Red, Green, Blue, White, Black. Press ESC to exit.</small></p>
+
+<h2>2. Speaker Test</h2>
+<button class="btn" onclick="playTestTone()">Play Audio Test Tone</button>
+<p><small>Plays a 1.5-second chime to ensure the audio driver and physical speakers work.</small></p>
+
+<h2>3. Keyboard Test</h2>
+<p>Press any key. The log blocks normal browser actions (like scrolling) so you can test the spacebar and arrows.</p>
+<div id="keyLog">Waiting for keypress...<br></div>
+
+<script>
+// 1. Display Test Logic
+const colors = ['red', 'green', 'blue', 'white', 'black'];
+let colorIndex = 0;
+let testDiv = null;
+
+function startDisplayTest() {
+    testDiv = document.createElement('div');
+    testDiv.style.position = 'fixed';
+    testDiv.style.top = '0'; testDiv.style.left = '0';
+    testDiv.style.width = '100vw'; testDiv.style.height = '100vh';
+    testDiv.style.zIndex = '9999';
+    testDiv.style.backgroundColor = colors[colorIndex];
+    testDiv.onclick = function() {
+        colorIndex++;
+        if (colorIndex >= colors.length) {
+            document.body.removeChild(testDiv);
+            colorIndex = 0;
+        } else {
+            testDiv.style.backgroundColor = colors[colorIndex];
+        }
+    };
+    document.body.appendChild(testDiv);
+    testDiv.requestFullscreen().catch(() => alert("Your browser blocked fullscreen, but the colors will still show."));
+}
+
+// 2. Speaker Test Logic
+function playTestTone() {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // A4 note
+    oscillator.connect(audioCtx.destination);
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 1.5); 
+}
+
+// 3. Keyboard Test Logic
+document.addEventListener('keydown', function(event) {
+    const log = document.getElementById('keyLog');
+    if (log.innerHTML.includes("Waiting")) { log.innerHTML = ""; }
+    
+    const entry = "<span style='color: green;'>✔</span> <b>" + event.key + "</b> (Hardware Code: " + event.code + ") registered.<br>";
+    log.innerHTML = entry + log.innerHTML;
+    
+    // Prevent default actions for testing Spacebar, Arrows, Tab, etc.
+    if (event.key !== "Escape" && event.key !== "F5" && event.key !== "F12") {
+        event.preventDefault(); 
+    }
+});
+</script>
+</body>
+</html>
