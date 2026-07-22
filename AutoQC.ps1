@@ -52,29 +52,56 @@ if ($NetAdapters) {
     }
 }
 
-# --- 4. STORAGE HEALTH (Integration with smartctl.exe) ---
+# --- 4. STORAGE HEALTH (Hard Disk Sentinel Integration) ---
 Write-Host "`n--- STORAGE HEALTH ---" -ForegroundColor Yellow
-$Disks = Get-PhysicalDisk
-foreach ($Disk in $Disks) {
-    $SizeGB = [math]::Round($Disk.Size / 1GB, 2)
-    $Name = $Disk.FriendlyName
-    $Health = "Unknown"
 
-    $Counters = $Disk | Get-StorageReliabilityCounter -ErrorAction SilentlyContinue
-    if ($null -ne $Counters -and $null -ne $Counters.Wear) {
-        $Health = "$(100 - $Counters.Wear)%"
-    } 
-    elseif (Test-Path ".\smartctl.exe") {
-        $DriveIndex = $Disk.DeviceId
-        $SmartOut = & .\smartctl.exe -a /dev/pd$DriveIndex
-        $PercUsed = $SmartOut | Select-String "Percentage Used:\s+(\d+)"
-        if ($PercUsed) {
-            $wearVal = $PercUsed.Matches.Groups[1].Value
-            $Health = "$(100 - [int]$wearVal)%"
+if (Test-Path ".\HDSentinel.exe") {
+    Write-Host "Analyzing drives with Hard Disk Sentinel..." -ForegroundColor DarkGray
+    $XmlReport = ".\HDS_Report.xml"
+    
+    # Run HDS silently in the background and force it to generate an XML report
+    Start-Process -FilePath ".\HDSentinel.exe" -ArgumentList "/XML /REPORT $XmlReport" -Wait -WindowStyle Hidden
+    
+    # Wait a brief moment to ensure the file is fully written to the USB
+    Start-Sleep -Seconds 2
+    
+    if (Test-Path $XmlReport) {
+        [xml]$hdsData = Get-Content $XmlReport
+        
+        # Parse the XML to find every physical disk connected to the laptop
+        $DiskNodes = $hdsData.Hard_Disk_Sentinel.ChildNodes | Where-Object { $_.Name -match "Physical_Disk_Information_Disk_" }
+        
+        foreach ($Node in $DiskNodes) {
+            $Model = $Node.Hard_Disk_Model_ID
+            $Health = $Node.Health
+            $PowerOn = $Node.Power_on_time
+            $Condition = $Node.Hard_Disk_Status
+            
+            # Clean up the health percentage for math evaluation
+            $HealthNum = $Health -replace '[^\d]', ''
+            
+            if (![string]::IsNullOrWhiteSpace($HealthNum) -and [int]$HealthNum -ge 80) {
+                Write-Host "Drive: $Model | Health: $Health | Status: $Condition" -ForegroundColor Green
+            } else {
+                Write-Host "Drive: $Model | Health: $Health | Status: $Condition" -ForegroundColor Red
+            }
+            Write-Host "   -> Usage: $PowerOn" -ForegroundColor DarkGray
         }
+        
+        # Silently delete the temporary XML file to keep the USB drive clean
+        Remove-Item $XmlReport -Force -ErrorAction SilentlyContinue
+    } else {
+        Write-Host "Error: HDSentinel ran but did not output the XML report." -ForegroundColor Red
     }
-
-    Write-Host "Drive: $Name | Size: $SizeGB GB | Health: $Health" -ForegroundColor White
+} else {
+    Write-Host "Error: HDSentinel.exe not found on USB drive!" -ForegroundColor Red
+    
+    # Basic fallback if the .exe is missing
+    $Disks = Get-PhysicalDisk
+    foreach ($Disk in $Disks) {
+        $SizeGB = [math]::Round($Disk.Size / 1GB, 2)
+        Write-Host "Drive: $($Disk.FriendlyName) | Size: $SizeGB GB | Health: Unknown (HDS Missing)" -ForegroundColor DarkGray
+    }
 }
 
 # --- 5. BATTERY HEALTH (Current Capacity %) ---
