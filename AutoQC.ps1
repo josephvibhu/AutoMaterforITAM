@@ -1,73 +1,84 @@
-$ReportPath = ".\$($env:COMPUTERNAME)_Full_QC_Report.txt"
-"========================================" | Out-File $ReportPath
-"        HARDWARE QC REPORT              " | Out-File $ReportPath
-"========================================" | Out-File $ReportPath
-"Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" | Out-File $ReportPath -Append
-"Computer Name: $($env:COMPUTERNAME)" | Out-File $ReportPath -Append
+# ==========================================
+#        ITAS CONSOLE HARDWARE QC 
+# ==========================================
+Clear-Host
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "        HARDWARE QC REPORT              " -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+Write-Host "Computer Name: $($env:COMPUTERNAME)"
 
-# --- 1. CORE SYSTEM & SERIALS (For Snipe-IT) ---
-" `n--- SYSTEM INFO ---" | Out-File $ReportPath -Append
+# --- 1. CORE SYSTEM & SERIALS (With OEM Fallbacks) ---
+Write-Host "`n--- SYSTEM INFO ---" -ForegroundColor Yellow
 $Sys = Get-CimInstance Win32_ComputerSystem
 $BIOS = Get-CimInstance Win32_BIOS
-"Model: $($Sys.Model)" | Out-File $ReportPath -Append
-"Serial Number: $($BIOS.SerialNumber)" | Out-File $ReportPath -Append
-"Manufacturer: $($Sys.Manufacturer)" | Out-File $ReportPath -Append
+$CSP = Get-CimInstance Win32_ComputerSystemProduct
+$Board = Get-CimInstance Win32_BaseBoard
 
-# --- 2. CPU, RAM, & GPU (xsukax features) ---
-" `n--- PROCESSING & MEMORY ---" | Out-File $ReportPath -Append
-$CPU = Get-CimInstance Win32_Processor
-"CPU: $($CPU.Name)" | Out-File $ReportPath -Append
-"RAM: $([math]::Round($Sys.TotalPhysicalMemory / 1GB, 2)) GB" | Out-File $ReportPath -Append
-$GPU = Get-CimInstance Win32_VideoController
-foreach ($g in $GPU) { "GPU: $($g.Name)" | Out-File $ReportPath -Append }
-
-# --- 3. CONNECTIVITY (Wi-Fi & Bluetooth) ---
-" `n--- NETWORK & BLUETOOTH ---" | Out-File $ReportPath -Append
-# Check Bluetooth via Plug and Play devices
-$BT = Get-PnpDevice -Class Bluetooth -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'OK' }
-if ($BT) {
-    "Bluetooth: PASS (Found $($BT.Count) active BT radios)" | Out-File $ReportPath -Append
-} else {
-    "Bluetooth: FAIL (Missing or Driver Error)" | Out-File $ReportPath -Append
+# Deep Model Fallback (For Acer/Asus)
+$Model = $Sys.Model
+if ([string]::IsNullOrWhiteSpace($Model) -or $Model -match "System Product Name" -or $Model -match "Default string") { 
+    $Model = $CSP.Name
+    if ([string]::IsNullOrWhiteSpace($Model)) { $Model = $Board.Product }
 }
 
-# Check Physical Network Adapters (Wi-Fi / Ethernet)
+# Deep Serial Fallback
+$Serial = $BIOS.SerialNumber
+if ([string]::IsNullOrWhiteSpace($Serial) -or $Serial -match "Default string") { 
+    $Serial = $CSP.IdentifyingNumber
+}
+
+Write-Host "Model: $Model" -ForegroundColor White
+Write-Host "Serial Number: $Serial" -ForegroundColor White
+Write-Host "Manufacturer: $($Sys.Manufacturer)"
+
+# --- 2. CPU, RAM, & GPU ---
+Write-Host "`n--- PROCESSING & MEMORY ---" -ForegroundColor Yellow
+$CPU = Get-CimInstance Win32_Processor
+Write-Host "CPU: $($CPU.Name)"
+Write-Host "RAM: $([math]::Round($Sys.TotalPhysicalMemory / 1GB, 2)) GB"
+$GPU = Get-CimInstance Win32_VideoController
+foreach ($g in $GPU) { Write-Host "GPU: $($g.Name)" }
+
+# --- 3. CONNECTIVITY (Wi-Fi & Bluetooth) ---
+Write-Host "`n--- NETWORK & BLUETOOTH ---" -ForegroundColor Yellow
+$BT = Get-PnpDevice -Class Bluetooth -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'OK' }
+if ($BT) { Write-Host "Bluetooth: PASS (Found active BT radios)" } else { Write-Host "Bluetooth: FAIL" -ForegroundColor Red }
+
 $NetAdapters = Get-NetAdapter -Physical -ErrorAction SilentlyContinue
 if ($NetAdapters) {
     foreach ($adapter in $NetAdapters) {
-        "Adapter: $($adapter.InterfaceDescription) | Status: $($adapter.Status)" | Out-File $ReportPath -Append
+        Write-Host "Adapter: $($adapter.InterfaceDescription) | Status: $($adapter.Status)"
     }
-} else {
-    "Network: FAIL (No physical adapters found)" | Out-File $ReportPath -Append
 }
 
-# --- 4. STORAGE & HEALTH (WITH PERCENTAGE) ---
-" `n--- STORAGE HEALTH ---" | Out-File $ReportPath -Append
+# --- 4. STORAGE HEALTH (Integration with smartctl.exe) ---
+Write-Host "`n--- STORAGE HEALTH ---" -ForegroundColor Yellow
 $Disks = Get-PhysicalDisk
 foreach ($Disk in $Disks) {
     $SizeGB = [math]::Round($Disk.Size / 1GB, 2)
     $Name = $Disk.FriendlyName
-    $Type = $Disk.MediaType
-    
-    # Check basic status
-    $Status = "PASS"
-    $SMART = Get-WmiObject -namespace root\wmi -class MSStorageDriver_FailurePredictStatus -ErrorAction SilentlyContinue | Where-Object { $_.InstanceName -match $Disk.DeviceId }
-    if ($SMART -and $SMART.PredictFailure) { $Status = "FAIL PENDING" }
+    $Health = "Unknown"
 
-    # Attempt to read exact Wear Level (Works best for NVMe SSDs)
     $Counters = $Disk | Get-StorageReliabilityCounter -ErrorAction SilentlyContinue
     if ($null -ne $Counters -and $null -ne $Counters.Wear) {
-        $HealthPct = 100 - $Counters.Wear
-        "Drive: $Name ($Type) | Size: $SizeGB GB | Status: $Status | Health: $HealthPct%" | Out-File $ReportPath -Append
-        "Power-On Hours: $($Counters.PowerOnHours)" | Out-File $ReportPath -Append
-    } else {
-        # Fallback for older SATA drives that do not report wear to Windows natively
-        "Drive: $Name ($Type) | Size: $SizeGB GB | Status: $Status | Health: Unknown % (Not reported natively)" | Out-File $ReportPath -Append
+        $Health = "$(100 - $Counters.Wear)%"
+    } 
+    elseif (Test-Path ".\smartctl.exe") {
+        $DriveIndex = $Disk.DeviceId
+        $SmartOut = & .\smartctl.exe -a /dev/pd$DriveIndex
+        $PercUsed = $SmartOut | Select-String "Percentage Used:\s+(\d+)"
+        if ($PercUsed) {
+            $wearVal = $PercUsed.Matches.Groups[1].Value
+            $Health = "$(100 - [int]$wearVal)%"
+        }
     }
+
+    Write-Host "Drive: $Name | Size: $SizeGB GB | Health: $Health" -ForegroundColor White
 }
 
-# --- 5. BATTERY HEALTH (Calculates Wear Level) ---
-" `n--- BATTERY STATUS ---" | Out-File $ReportPath -Append
+# --- 5. BATTERY HEALTH (Current Capacity %) ---
+Write-Host "`n--- BATTERY STATUS ---" -ForegroundColor Yellow
 $b_static = Get-WmiObject -Namespace root\wmi -Class BatteryStaticData -ErrorAction SilentlyContinue
 $b_full = Get-WmiObject -Namespace root\wmi -Class BatteryFullChargedCapacity -ErrorAction SilentlyContinue
 
@@ -75,16 +86,32 @@ if ($b_static -and $b_full) {
     $design = $b_static.DesignedCapacity
     $full = $b_full.FullChargedCapacity
     if ($design -gt 0) {
-        $wear = [math]::Round((($design - $full) / $design) * 100, 2)
-        if ($wear -lt 0) { $wear = 0 } # Fixes anomalies if battery reads slightly over design capacity
+        $healthPct = [math]::Round(($full / $design) * 100, 2)
+        if ($healthPct -gt 100) { $healthPct = 100 } 
         
-        "Design Capacity: $($design) mWh" | Out-File $ReportPath -Append
-        "Current Max Capacity: $($full) mWh" | Out-File $ReportPath -Append
-        "Battery Wear Level: $($wear)% (Higher is worse)" | Out-File $ReportPath -Append
+        Write-Host "Design Capacity: $($design) mWh"
+        Write-Host "Current Max Capacity: $($full) mWh"
+        
+        if ($healthPct -ge 80) {
+            Write-Host "Battery Health: $($healthPct)% (Healthy)" -ForegroundColor Green
+        } else {
+            Write-Host "Battery Health: $($healthPct)% (Degraded)" -ForegroundColor Red
+        }
     }
 } else {
-    "Battery: No battery detected or missing WMI data." | Out-File $ReportPath -Append
+    Write-Host "Battery: No battery detected or missing WMI data." -ForegroundColor DarkGray
 }
 
-Write-Host "Full Diagnostic log saved to $ReportPath" -ForegroundColor Green
-Start-Sleep -Seconds 4
+Write-Host "`n========================================" -ForegroundColor Cyan
+Write-Host "Launching Visual QC Dashboard..." -ForegroundColor Cyan
+
+# --- 6. AUTO-LAUNCH HTML DASHBOARD ---
+# Uses Start-Process to ensure it opens smoothly in the default browser
+if (Test-Path ".\Interactive_QC.html") {
+    Start-Process ".\Interactive_QC.html"
+} else {
+    Write-Host "Could not find Interactive_QC.html on the USB drive!" -ForegroundColor Red
+}
+
+Write-Host "`nPress any key to close this console..." -ForegroundColor DarkGray
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
