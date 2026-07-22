@@ -1,0 +1,3 @@
+@echo off
+echo Starting Hardware QC Script...
+powershell.exe -ExecutionPolicy Bypass -NoProfile -File "%~dp0AutoQC.ps1"
