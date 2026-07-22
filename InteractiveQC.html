@@ -2,24 +2,28 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Refurb QC Visual Tester</title>
+<title>ITAS Visual QC Tester</title>
 <style>
-  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e1e1e; color: #fff; text-align: center; padding: 20px; }
-  .container { max-width: 1000px; margin: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e1e1e; color: #fff; text-align: center; padding: 20px; margin: 0;}
+  .container { max-width: 1300px; margin: auto; display: flex; flex-direction: column; gap: 20px; }
   .card { background: #2d2d2d; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
-  .card-full { grid-column: span 2; background: #2d2d2d; padding: 20px; border-radius: 8px; }
+  .top-row-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   .btn { display: inline-block; background: #0078D7; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 4px; cursor: pointer; margin: 5px; text-decoration: none; }
   .btn:hover { background: #005A9E; }
   
-  /* Visual Keyboard Layout */
-  .keyboard { display: flex; flex-direction: column; gap: 5px; align-items: center; margin-top: 15px; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #444;}
-  .row { display: flex; gap: 5px; }
-  .key { background: #333; border: 1px solid #555; border-radius: 4px; padding: 10px; min-width: 30px; font-size: 14px; text-align: center; transition: background 0.1s; user-select: none; }
+  /* Full Keyboard Wrapper */
+  .keyboard-wrapper { display: flex; justify-content: center; gap: 20px; margin-top: 15px; background: #111; padding: 20px; border-radius: 8px; border: 1px solid #444; overflow-x: auto;}
+  .keyboard-section { display: flex; flex-direction: column; gap: 5px; }
+  .row { display: flex; gap: 5px; justify-content: center; }
+  
+  .key { background: #333; border: 1px solid #555; border-radius: 4px; padding: 10px 5px; min-width: 40px; font-size: 13px; text-align: center; transition: background 0.1s; user-select: none; display: flex; align-items: center; justify-content: center; box-sizing: border-box;}
   .key.pressed { background: #4CAF50 !important; color: black; border-color: #2E7D32; }
   
   /* Custom Key Widths */
-  #Backspace, #Tab, #CapsLock, #Enter, #ShiftLeft, #ShiftRight { min-width: 70px; }
-  #Space { min-width: 300px; }
+  #Backspace, #Tab, #CapsLock, #Enter, #ShiftLeft, #ShiftRight { min-width: 80px; }
+  #Space { min-width: 350px; }
+  #Numpad0 { min-width: 85px; }
+  #NumpadEnter { height: 100%; }
   
   #displayOverlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; text-align: center; justify-content: center; align-items: center; font-size: 24px; font-weight: bold; color: rgba(128,128,128,0.5); cursor: pointer; }
 </style>
@@ -30,60 +34,97 @@
 
 <div class="container">
   
-  <!-- DISPLAY & AUDIO -->
-  <div class="card">
-    <h3>1. Display & Audio</h3>
-    <button class="btn" onclick="startDisplayTest()">Run Dead Pixel Test</button>
-    <p style="font-size: 12px; color: #aaa;">Click screen or press Space to cycle colors.</p>
-    <hr style="border-color: #444; margin: 15px 0;">
-    <button class="btn" onclick="playTone(-1)">Test LEFT Speaker</button>
-    <button class="btn" onclick="playTone(1)">Test RIGHT Speaker</button>
-  </div>
+  <div class="top-row-cards">
+      <!-- DISPLAY & AUDIO -->
+      <div class="card">
+        <h3>1. Display & Audio</h3>
+        <button class="btn" onclick="startDisplayTest()">Run Dead Pixel Test</button>
+        <hr style="border-color: #444; margin: 15px 0;">
+        <button class="btn" onclick="playTone(-1)">Test LEFT Speaker</button>
+        <button class="btn" onclick="playTone(1)">Test RIGHT Speaker</button>
+      </div>
 
-  <!-- WEBCAM & MIC -->
-  <div class="card">
-    <h3>2. Webcam & Mic</h3>
-    <p style="font-size: 12px; color: #aaa;">These buttons open the native Windows apps to bypass browser security blocks.</p>
-    <a href="microsoft.windows.camera:" class="btn">Open Windows Camera</a>
-    <a href="ms-settings:sound" class="btn">Check Mic in Settings</a>
+      <!-- WEBCAM & MIC -->
+      <div class="card">
+        <h3>2. Webcam & Mic</h3>
+        <a href="microsoft.windows.camera:" class="btn">Open Windows Camera</a>
+        <a href="ms-settings:sound" class="btn">Check Mic in Settings</a>
+      </div>
   </div>
 
   <!-- VISUAL KEYBOARD -->
-  <div class="card-full">
-    <h3>3. Visual Keyboard Matrix</h3>
-    <p style="font-size: 14px; color: #aaa;">Press keys on the laptop. They will light up green here to prove they work.</p>
+  <div class="card">
+    <h3>3. Visual Keyboard Matrix (Full Layout)</h3>
+    <p style="font-size: 14px; color: #aaa;">Press every key on the laptop. Ignore sections (like Numpad) if the laptop doesn't have them.</p>
     
-    <div class="keyboard">
-      <!-- Function Row -->
-      <div class="row">
-        <div class="key" id="Escape">Esc</div>
-        <div class="key" id="F1">F1</div><div class="key" id="F2">F2</div><div class="key" id="F3">F3</div><div class="key" id="F4">F4</div>
-        <div class="key" id="F5">F5</div><div class="key" id="F6">F6</div><div class="key" id="F7">F7</div><div class="key" id="F8">F8</div>
-        <div class="key" id="F9">F9</div><div class="key" id="F10">F10</div><div class="key" id="F11">F11</div><div class="key" id="F12">F12</div>
+    <div class="keyboard-wrapper">
+      
+      <!-- MAIN KEYBOARD -->
+      <div class="keyboard-section">
+        <div class="row">
+          <div class="key" id="Escape">Esc</div>
+          <div class="key" id="F1" style="margin-left:20px;">F1</div><div class="key" id="F2">F2</div><div class="key" id="F3">F3</div><div class="key" id="F4">F4</div>
+          <div class="key" id="F5" style="margin-left:15px;">F5</div><div class="key" id="F6">F6</div><div class="key" id="F7">F7</div><div class="key" id="F8">F8</div>
+          <div class="key" id="F9" style="margin-left:15px;">F9</div><div class="key" id="F10">F10</div><div class="key" id="F11">F11</div><div class="key" id="F12">F12</div>
+        </div>
+        <div class="row">
+          <div class="key" id="Backquote">~</div><div class="key" id="Digit1">1</div><div class="key" id="Digit2">2</div><div class="key" id="Digit3">3</div><div class="key" id="Digit4">4</div><div class="key" id="Digit5">5</div><div class="key" id="Digit6">6</div><div class="key" id="Digit7">7</div><div class="key" id="Digit8">8</div><div class="key" id="Digit9">9</div><div class="key" id="Digit0">0</div><div class="key" id="Minus">-</div><div class="key" id="Equal">=</div><div class="key" id="Backspace">Backspace</div>
+        </div>
+        <div class="row">
+          <div class="key" id="Tab">Tab</div><div class="key" id="KeyQ">Q</div><div class="key" id="KeyW">W</div><div class="key" id="KeyE">E</div><div class="key" id="KeyR">R</div><div class="key" id="KeyT">T</div><div class="key" id="KeyY">Y</div><div class="key" id="KeyU">U</div><div class="key" id="KeyI">I</div><div class="key" id="KeyO">O</div><div class="key" id="KeyP">P</div><div class="key" id="BracketLeft">[</div><div class="key" id="BracketRight">]</div><div class="key" id="Backslash">\</div>
+        </div>
+        <div class="row">
+          <div class="key" id="CapsLock">Caps</div><div class="key" id="KeyA">A</div><div class="key" id="KeyS">S</div><div class="key" id="KeyD">D</div><div class="key" id="KeyF">F</div><div class="key" id="KeyG">G</div><div class="key" id="KeyH">H</div><div class="key" id="KeyJ">J</div><div class="key" id="KeyK">K</div><div class="key" id="KeyL">L</div><div class="key" id="Semicolon">;</div><div class="key" id="Quote">'</div><div class="key" id="Enter">Enter</div>
+        </div>
+        <div class="row">
+          <div class="key" id="ShiftLeft">Shift</div><div class="key" id="KeyZ">Z</div><div class="key" id="KeyX">X</div><div class="key" id="KeyC">C</div><div class="key" id="KeyV">V</div><div class="key" id="KeyB">B</div><div class="key" id="KeyN">N</div><div class="key" id="KeyM">M</div><div class="key" id="Comma">,</div><div class="key" id="Period">.</div><div class="key" id="Slash">/</div><div class="key" id="ShiftRight">Shift</div>
+        </div>
+        <div class="row">
+          <div class="key" id="ControlLeft">Ctrl</div><div class="key" id="MetaLeft">Win</div><div class="key" id="AltLeft">Alt</div><div class="key" id="Space">Space</div><div class="key" id="AltRight">Alt</div><div class="key" id="MetaRight">Win</div><div class="key" id="ContextMenu">Menu</div><div class="key" id="ControlRight">Ctrl</div>
+        </div>
       </div>
-      <!-- Number Row -->
-      <div class="row">
-        <div class="key" id="Backquote">~</div><div class="key" id="Digit1">1</div><div class="key" id="Digit2">2</div><div class="key" id="Digit3">3</div><div class="key" id="Digit4">4</div><div class="key" id="Digit5">5</div><div class="key" id="Digit6">6</div><div class="key" id="Digit7">7</div><div class="key" id="Digit8">8</div><div class="key" id="Digit9">9</div><div class="key" id="Digit0">0</div><div class="key" id="Minus">-</div><div class="key" id="Equal">=</div><div class="key" id="Backspace">Backspace</div>
+
+      <!-- NAV CLUSTER & ARROWS -->
+      <div class="keyboard-section">
+        <div class="row">
+          <div class="key" id="PrintScreen">PrtSc</div><div class="key" id="ScrollLock">ScrLk</div><div class="key" id="Pause">Pause</div>
+        </div>
+        <div class="row">
+          <div class="key" id="Insert">Ins</div><div class="key" id="Home">Home</div><div class="key" id="PageUp">PgUp</div>
+        </div>
+        <div class="row">
+          <div class="key" id="Delete">Del</div><div class="key" id="End">End</div><div class="key" id="PageDown">PgDn</div>
+        </div>
+        <div class="row" style="margin-top: 15px;">
+           <div class="key" style="visibility:hidden;"></div><div class="key" id="ArrowUp">▲</div><div class="key" style="visibility:hidden;"></div>
+        </div>
+        <div class="row">
+           <div class="key" id="ArrowLeft">◄</div><div class="key" id="ArrowDown">▼</div><div class="key" id="ArrowRight">►</div>
+        </div>
       </div>
-      <!-- Top Row -->
-      <div class="row">
-        <div class="key" id="Tab">Tab</div><div class="key" id="KeyQ">Q</div><div class="key" id="KeyW">W</div><div class="key" id="KeyE">E</div><div class="key" id="KeyR">R</div><div class="key" id="KeyT">T</div><div class="key" id="KeyY">Y</div><div class="key" id="KeyU">U</div><div class="key" id="KeyI">I</div><div class="key" id="KeyO">O</div><div class="key" id="KeyP">P</div><div class="key" id="BracketLeft">[</div><div class="key" id="BracketRight">]</div><div class="key" id="Backslash">\</div>
+
+      <!-- NUMPAD -->
+      <div class="keyboard-section">
+        <div class="row">
+          <div class="key" id="NumLock">Num</div><div class="key" id="NumpadDivide">/</div><div class="key" id="NumpadMultiply">*</div><div class="key" id="NumpadSubtract">-</div>
+        </div>
+        <div class="row">
+          <div class="key" id="Numpad7">7</div><div class="key" id="Numpad8">8</div><div class="key" id="Numpad9">9</div><div class="key" id="NumpadAdd" style="height: 65px; position: absolute; margin-left: 144px;">+</div>
+        </div>
+        <div class="row">
+          <div class="key" id="Numpad4">4</div><div class="key" id="Numpad5">5</div><div class="key" id="Numpad6">6</div><div class="key" style="visibility:hidden; width:40px;"></div>
+        </div>
+        <div class="row">
+          <div class="key" id="Numpad1">1</div><div class="key" id="Numpad2">2</div><div class="key" id="Numpad3">3</div><div class="key" id="NumpadEnter" style="height: 65px; position: absolute; margin-left: 144px;">Ent</div>
+        </div>
+        <div class="row">
+          <div class="key" id="Numpad0">0</div><div class="key" id="NumpadDecimal">.</div><div class="key" style="visibility:hidden; width:40px;"></div>
+        </div>
       </div>
-      <!-- Home Row -->
-      <div class="row">
-        <div class="key" id="CapsLock">Caps</div><div class="key" id="KeyA">A</div><div class="key" id="KeyS">S</div><div class="key" id="KeyD">D</div><div class="key" id="KeyF">F</div><div class="key" id="KeyG">G</div><div class="key" id="KeyH">H</div><div class="key" id="KeyJ">J</div><div class="key" id="KeyK">K</div><div class="key" id="KeyL">L</div><div class="key" id="Semicolon">;</div><div class="key" id="Quote">'</div><div class="key" id="Enter">Enter</div>
-      </div>
-      <!-- Bottom Row -->
-      <div class="row">
-        <div class="key" id="ShiftLeft">Shift</div><div class="key" id="KeyZ">Z</div><div class="key" id="KeyX">X</div><div class="key" id="KeyC">C</div><div class="key" id="KeyV">V</div><div class="key" id="KeyB">B</div><div class="key" id="KeyN">N</div><div class="key" id="KeyM">M</div><div class="key" id="Comma">,</div><div class="key" id="Period">.</div><div class="key" id="Slash">/</div><div class="key" id="ShiftRight">Shift</div>
-      </div>
-      <!-- Space Row -->
-      <div class="row">
-        <div class="key" id="ControlLeft">Ctrl</div><div class="key" id="MetaLeft">Win</div><div class="key" id="AltLeft">Alt</div><div class="key" id="Space">Space</div><div class="key" id="AltRight">Alt</div><div class="key" id="ControlRight">Ctrl</div><div class="key" id="ArrowLeft">◄</div><div class="key" id="ArrowUp">▲</div><div class="key" id="ArrowDown">▼</div><div class="key" id="ArrowRight">►</div>
-      </div>
+
     </div>
     
-    <button class="btn" onclick="resetKeyboard()" style="background: #555; margin-top: 15px;">Reset Keyboard</button>
+    <button class="btn" onclick="resetKeyboard()" style="background: #555; margin-top: 20px;">Reset Keyboard</button>
   </div>
 
 </div>
@@ -144,7 +185,6 @@ function playTone(panValue) {
 
 // --- VISUAL KEYBOARD TEST ---
 document.addEventListener('keydown', function(e) {
-    // Handle display test navigation
     if (isTestingDisplay) {
         if (e.key === "Escape") { exitDisplayTest(); }
         else if (e.key === " " || e.key === "ArrowRight") { cycleColor(); }
@@ -152,13 +192,12 @@ document.addEventListener('keydown', function(e) {
         return;
     }
 
-    // Light up the virtual keyboard key
     const visualKey = document.getElementById(e.code);
     if (visualKey) {
         visualKey.classList.add('pressed');
     }
     
-    // Block default browser actions so things like Spacebar don't scroll the page
+    // Block defaults for testing (Space, arrows, etc.)
     if (!['F5', 'F11', 'F12'].includes(e.key)) { 
         e.preventDefault(); 
     }
