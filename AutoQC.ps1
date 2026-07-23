@@ -61,23 +61,18 @@ $XmlReport = ".\HDS\HDS_Report.xml"
 if (Test-Path $HdsPath) {
     Write-Host "Analyzing drives with Hard Disk Sentinel..." -ForegroundColor DarkGray
     
-    # 1. Delete any old report to ensure fresh data
     if (Test-Path $XmlReport) { Remove-Item $XmlReport -Force -ErrorAction SilentlyContinue }
     
-    # 2. Run HDS WITHOUT the -Wait command so PowerShell doesn't get stuck
     Start-Process -FilePath $HdsPath -ArgumentList "/XML /REPORT `"$XmlReport`"" -WindowStyle Hidden
     
-    # 3. Dynamic Wait: Loop until the XML file is created (Max 10 seconds)
     $timeout = 10
     while (!(Test-Path $XmlReport) -and $timeout -gt 0) {
         Start-Sleep -Seconds 1
         $timeout--
     }
     
-    # Give HDS 1 extra second to finish writing the text into the file
     Start-Sleep -Seconds 1
     
-    # 4. Forcefully kill Hard Disk Sentinel so it doesn't stay running on the laptop
     Stop-Process -Name "HDSentinel" -Force -ErrorAction SilentlyContinue
     
     if (Test-Path $XmlReport) {
@@ -101,7 +96,6 @@ if (Test-Path $HdsPath) {
             Write-Host "   -> Usage: $PowerOn" -ForegroundColor DarkGray
         }
         
-        # Clean up the XML file
         Remove-Item $XmlReport -Force -ErrorAction SilentlyContinue
     } else {
         Write-Host "Error: HDSentinel took too long to generate the report." -ForegroundColor Red
@@ -145,7 +139,6 @@ Write-Host "`n========================================" -ForegroundColor Cyan
 Write-Host "Launching Visual QC Dashboard..." -ForegroundColor Cyan
 
 # --- 6. AUTO-LAUNCH HTML DASHBOARD ---
-# Uses Start-Process to ensure it opens smoothly in the default browser
 if (Test-Path ".\Interactive_QC.html") {
     Start-Process ".\Interactive_QC.html"
 } else {
