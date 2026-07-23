@@ -68,7 +68,7 @@ if (Test-Path $HdsPath) {
     if (Test-Path $XmlReport) { Remove-Item $XmlReport -Force -ErrorAction SilentlyContinue }
     
     # Run HDS using absolute paths
-    Start-Process -FilePath $HdsPath -ArgumentList "/XML /REPORT `"$XmlReport`"" -WindowStyle Hidden
+    Start-Process -FilePath $HdsPath -ArgumentList "/XML /REPORT `"$XmlReport`""
     
     # Increased timeout to 15 seconds for slower laptops
     $timeout = 15
