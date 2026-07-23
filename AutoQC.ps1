@@ -55,14 +55,15 @@ if ($NetAdapters) {
 # --- 4. STORAGE HEALTH (Hard Disk Sentinel Integration) ---
 Write-Host "`n--- STORAGE HEALTH ---" -ForegroundColor Yellow
 
-if (Test-Path ".\HDSentinel.exe") {
+$HdsPath = ".\HDS\HDSentinel.exe"
+$XmlReport = ".\HDS\HDS_Report.xml"
+
+if (Test-Path $HdsPath) {
     Write-Host "Analyzing drives with Hard Disk Sentinel..." -ForegroundColor DarkGray
-    $XmlReport = ".\HDS_Report.xml"
     
-    # Run HDS silently in the background and force it to generate an XML report
-    Start-Process -FilePath ".\HDSentinel.exe" -ArgumentList "/XML /REPORT $XmlReport" -Wait -WindowStyle Hidden
+    # Run HDS silently from inside its folder
+    Start-Process -FilePath $HdsPath -ArgumentList "/XML /REPORT `"$XmlReport`"" -Wait -WindowStyle Hidden
     
-    # Wait a brief moment to ensure the file is fully written to the USB
     Start-Sleep -Seconds 2
     
     if (Test-Path $XmlReport) {
