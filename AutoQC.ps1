@@ -1,5 +1,5 @@
 # ==========================================
-#        ITAM CONSOLE HARDWARE QC 
+#        ITAS CONSOLE HARDWARE QC 
 # ==========================================
 Clear-Host
 Write-Host "========================================" -ForegroundColor Cyan
@@ -55,17 +55,23 @@ if ($NetAdapters) {
 # --- 4. STORAGE HEALTH (Hard Disk Sentinel Integration) ---
 Write-Host "`n--- STORAGE HEALTH ---" -ForegroundColor Yellow
 
-$HdsPath = ".\HDS\HDSentinel.exe"
-$XmlReport = ".\HDS\HDS_Report.xml"
+# Use absolute paths so HDSentinel doesn't get lost
+$HdsPath = "$PSScriptRoot\HDS\HDSentinel.exe"
+$XmlReport = "$PSScriptRoot\HDS\HDS_Report.xml"
 
 if (Test-Path $HdsPath) {
     Write-Host "Analyzing drives with Hard Disk Sentinel..." -ForegroundColor DarkGray
     
+    # Kill any stuck HDSentinel processes from previous attempts
+    Stop-Process -Name "HDSentinel" -Force -ErrorAction SilentlyContinue
+    
     if (Test-Path $XmlReport) { Remove-Item $XmlReport -Force -ErrorAction SilentlyContinue }
     
+    # Run HDS using absolute paths
     Start-Process -FilePath $HdsPath -ArgumentList "/XML /REPORT `"$XmlReport`"" -WindowStyle Hidden
     
-    $timeout = 10
+    # Increased timeout to 15 seconds for slower laptops
+    $timeout = 15
     while (!(Test-Path $XmlReport) -and $timeout -gt 0) {
         Start-Sleep -Seconds 1
         $timeout--
@@ -101,7 +107,7 @@ if (Test-Path $HdsPath) {
         Write-Host "Error: HDSentinel took too long to generate the report." -ForegroundColor Red
     }
 } else {
-    Write-Host "Error: HDSentinel.exe not found on USB drive!" -ForegroundColor Red
+    Write-Host "Error: HDSentinel.exe not found in USB\HDS folder!" -ForegroundColor Red
     
     $Disks = Get-PhysicalDisk
     foreach ($Disk in $Disks) {
@@ -139,8 +145,9 @@ Write-Host "`n========================================" -ForegroundColor Cyan
 Write-Host "Launching Visual QC Dashboard..." -ForegroundColor Cyan
 
 # --- 6. AUTO-LAUNCH HTML DASHBOARD ---
-if (Test-Path ".\Interactive_QC.html") {
-    Start-Process ".\Interactive_QC.html"
+$HtmlPath = "$PSScriptRoot\Interactive_QC.html"
+if (Test-Path $HtmlPath) {
+    Start-Process $HtmlPath
 } else {
     Write-Host "Could not find Interactive_QC.html on the USB drive!" -ForegroundColor Red
 }
