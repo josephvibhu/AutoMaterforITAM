@@ -61,15 +61,28 @@ $XmlReport = ".\HDS\HDS_Report.xml"
 if (Test-Path $HdsPath) {
     Write-Host "Analyzing drives with Hard Disk Sentinel..." -ForegroundColor DarkGray
     
-    # Run HDS silently from inside its folder
-    Start-Process -FilePath $HdsPath -ArgumentList "/XML /REPORT `"$XmlReport`"" -Wait -WindowStyle Hidden
+    # 1. Delete any old report to ensure fresh data
+    if (Test-Path $XmlReport) { Remove-Item $XmlReport -Force -ErrorAction SilentlyContinue }
     
-    Start-Sleep -Seconds 2
+    # 2. Run HDS WITHOUT the -Wait command so PowerShell doesn't get stuck
+    Start-Process -FilePath $HdsPath -ArgumentList "/XML /REPORT `"$XmlReport`"" -WindowStyle Hidden
+    
+    # 3. Dynamic Wait: Loop until the XML file is created (Max 10 seconds)
+    $timeout = 10
+    while (!(Test-Path $XmlReport) -and $timeout -gt 0) {
+        Start-Sleep -Seconds 1
+        $timeout--
+    }
+    
+    # Give HDS 1 extra second to finish writing the text into the file
+    Start-Sleep -Seconds 1
+    
+    # 4. Forcefully kill Hard Disk Sentinel so it doesn't stay running on the laptop
+    Stop-Process -Name "HDSentinel" -Force -ErrorAction SilentlyContinue
     
     if (Test-Path $XmlReport) {
         [xml]$hdsData = Get-Content $XmlReport
         
-        # Parse the XML to find every physical disk connected to the laptop
         $DiskNodes = $hdsData.Hard_Disk_Sentinel.ChildNodes | Where-Object { $_.Name -match "Physical_Disk_Information_Disk_" }
         
         foreach ($Node in $DiskNodes) {
@@ -78,7 +91,6 @@ if (Test-Path $HdsPath) {
             $PowerOn = $Node.Power_on_time
             $Condition = $Node.Hard_Disk_Status
             
-            # Clean up the health percentage for math evaluation
             $HealthNum = $Health -replace '[^\d]', ''
             
             if (![string]::IsNullOrWhiteSpace($HealthNum) -and [int]$HealthNum -ge 80) {
@@ -89,15 +101,14 @@ if (Test-Path $HdsPath) {
             Write-Host "   -> Usage: $PowerOn" -ForegroundColor DarkGray
         }
         
-        # Silently delete the temporary XML file to keep the USB drive clean
+        # Clean up the XML file
         Remove-Item $XmlReport -Force -ErrorAction SilentlyContinue
     } else {
-        Write-Host "Error: HDSentinel ran but did not output the XML report." -ForegroundColor Red
+        Write-Host "Error: HDSentinel took too long to generate the report." -ForegroundColor Red
     }
 } else {
     Write-Host "Error: HDSentinel.exe not found on USB drive!" -ForegroundColor Red
     
-    # Basic fallback if the .exe is missing
     $Disks = Get-PhysicalDisk
     foreach ($Disk in $Disks) {
         $SizeGB = [math]::Round($Disk.Size / 1GB, 2)
