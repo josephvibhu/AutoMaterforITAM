@@ -1,5 +1,5 @@
 # ==========================================
-#        ITAS CONSOLE HARDWARE QC 
+#        ITAM CONSOLE HARDWARE QC 
 # ==========================================
 Clear-Host
 Write-Host "========================================" -ForegroundColor Cyan
